@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  db:
+    image: mysql:8.0
+    container_name: health_report_db
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: health_report_db
+      MYSQL_USER: app_user
+      MYSQL_PASSWORD: app_password123
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./database.sql:/docker-entrypoint-initdb.d/schema.sql
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+    networks:
+      - health-network
+
+  # Node.js Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: health_report_app
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DB_HOST=db
+      - DB_USER=app_user
+      - DB_PASSWORD=app_password123
+      - DB_NAME=health_report_db
+      - AWS_REGION=ap-southeast-1
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-local-key}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-local-secret}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME:-health-report-local}
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - health-network
+    command: npm run dev
+
+volumes:
+  db_data:
+    driver: local
+
+networks:
+  health-network:
+    driver: bridge

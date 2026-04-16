@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+yarn.lock
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Build outputs
+dist/
+build/
+*.tar.gz
+
+# Temporary files
+.tmp/
+temp/
+tmp/
+
+# AWS
+.aws/
+
+# Markdown docs: keep only README.md in GitHub
+*.md
+!README.md
+
+# Docker
+docker-compose.override.yml
+utscloud.pem
