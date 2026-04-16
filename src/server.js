@@ -1,9 +1,7 @@
 const express = require('express');
 const mysql = require('mysql2/promise');
-const AWS = require('aws-sdk');
 const cors = require('cors');
 const multer = require('multer');
-const multerS3 = require('multer-s3');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
@@ -15,25 +13,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
-// ===== AWS S3 Configuration =====
-const s3 = new AWS.S3({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_REGION
-});
-
-// ===== Multer S3 Upload Configuration =====
-const upload = multer({
-  storage: multerS3({
-    s3: s3,
-    bucket: process.env.S3_BUCKET_NAME,
-    acl: 'public-read',
-    key: function (req, file, cb) {
-      const fileName = `reports/${Date.now()}-${uuidv4()}.jpg`;
-      cb(null, fileName);
-    }
-  })
-});
+// ===== Upload Configuration =====
+// Photo upload is accepted by the form, but storage is disabled for now to keep
+// report submission stable while the seeded database data remains usable.
+const upload = multer();
 
 // ===== Database Connection Pool =====
 const pool = mysql.createPool({
@@ -105,7 +88,7 @@ app.get('/api/statistics', async (req, res) => {
 app.post('/api/reports', upload.single('photo'), async (req, res) => {
   try {
     const { report_type, location, description, reporter_name, reporter_phone } = req.body;
-    const photoUrl = req.file ? req.file.location : null;
+    const photoUrl = null;
 
     if (!report_type || !location || !description) {
       return res.status(400).json({ error: 'Missing required fields' });
