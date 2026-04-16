@@ -400,7 +400,15 @@
           body: formData
         });
 
-        const data = await response.json();
+        const responseText = await response.text();
+        let data;
+
+        try {
+          data = responseText ? JSON.parse(responseText) : {};
+        } catch (parseError) {
+          data = { error: responseText || 'Unknown server response' };
+        }
+
         const alertDiv = document.getElementById('reportAlert');
 
         if (response.ok) {
