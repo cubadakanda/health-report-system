@@ -658,6 +658,17 @@
       <div id="dashboard" class="section" style="display: none;">
         <h2>📊 Dashboard Laporan</h2>
         <div class="stats-container" id="statsContainer"></div>
+        
+        <div style="margin: 20px 0; padding: 15px; background: var(--light-green); border-radius: 6px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+          <label for="statusFilter" style="font-weight: 600;">Filter Status:</label>
+          <select id="statusFilter" onchange="loadDashboard()" style="padding: 8px 12px; border: 1px solid var(--primary-green); border-radius: 4px; cursor: pointer;">
+            <option value="">📋 Semua Laporan</option>
+            <option value="pending">⏳ Pending</option>
+            <option value="verified">✅ Verified</option>
+            <option value="rejected">❌ Rejected</option>
+          </select>
+        </div>
+        
         <div id="dashboardList"></div>
       </div>
 
@@ -676,14 +687,21 @@
 
       <!-- SECTION 4: Admin Panel -->
       <div id="admin" class="section" style="display: none;">
-        <h2>⚙️ Admin Panel - Kelola Laporan</h2>
-        <div class="stats-container" id="adminStats"></div>
-        
-        <h3>Laporan Pending</h3>
-        <div class="form-group" style="max-width: 300px;">
-          <input type="text" id="adminSearch" placeholder="Cari laporan..." onchange="loadAdminReports()">
+        <div id="adminContent" style="display: none;">
+          <h2>⚙️ Admin Panel - Kelola Laporan</h2>
+          <div class="stats-container" id="adminStats"></div>
+          
+          <h3>Laporan Pending</h3>
+          <div class="form-group" style="max-width: 300px;">
+            <input type="text" id="adminSearch" placeholder="Cari laporan..." onchange="loadAdminReports()">
+          </div>
+          <div id="adminReports"></div>
         </div>
-        <div id="adminReports"></div>
+        
+        <div id="adminNotAllowed" style="text-align: center; padding: 60px 20px;">
+          <h3 style="color: var(--danger); margin-bottom: 20px;">❌ Akses Ditolak</h3>
+          <p style="color: var(--gray-dark); font-size: 1.1em;">Anda tidak memiliki akses ke Admin Panel. Hanya administrator yang bisa mengakses fitur ini.</p>
+        </div>
       </div>
     </div>
   </div>
@@ -787,6 +805,7 @@
     const API_URL = '/api';
     let currentUser = null;
     let isLoggedIn = false;
+    let isAdmin = false;
 
     // ===== AUTHENTICATION =====
     async function login(e) {
@@ -806,6 +825,7 @@
         if (response.ok) {
           currentUser = data.user;
           isLoggedIn = true;
+          isAdmin = data.user.role === 'admin';
           updateUserDisplay();
           closeAuthModal();
           showSection('report');
@@ -923,6 +943,12 @@
         return;
       }
 
+      // Check admin access
+      if (sectionId === 'admin' && !isAdmin) {
+        document.getElementById('adminContent').style.display = 'none';
+        document.getElementById('adminNotAllowed').style.display = 'block';
+      }
+
       document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
       document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
       
@@ -930,10 +956,10 @@
         document.getElementById('authSection').style.display = 'block';
       } else {
         document.getElementById(sectionId).style.display = 'block';
-        event.target.classList.add('active');
+        if (event && event.target) event.target.classList.add('active');
 
         if (sectionId === 'dashboard') loadDashboard();
-        if (sectionId === 'admin') loadAdminDashboard();
+        if (sectionId === 'admin' && isAdmin) loadAdminDashboard();
         if (sectionId === 'report') loadReports();
         if (sectionId === 'monitoring') loadMonitoring();
       }
@@ -1084,7 +1110,13 @@
         `;
 
         const reportsResponse = await fetch(`${API_URL}/reports`);
-        const reports = await reportsResponse.json();
+        let reports = await reportsResponse.json();
+
+        // Filter by status if selected
+        const statusFilter = document.getElementById('statusFilter').value;
+        if (statusFilter) {
+          reports = reports.filter(r => r.status === statusFilter);
+        }
 
         const html = `
           <table>
@@ -1095,6 +1127,7 @@
                 <th>Lokasi</th>
                 <th>Status</th>
                 <th>Tanggal</th>
+                <th>Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -1105,13 +1138,17 @@
                   <td>${r.location}</td>
                   <td><span class="card-badge ${r.status}">${r.status}</span></td>
                   <td>${new Date(r.created_at).toLocaleDateString('id-ID')}</td>
+                  <td>
+                    <button onclick="openEditModal({id: ${r.id}, report_type: '${r.report_type}', location: '${r.location}', description: '${r.description.replace(/'/g, "\\'")}'})" class="btn" style="padding: 6px 10px; font-size: 0.85em; background: var(--primary-green);">✏️ Edit</button>
+                    <button onclick="deleteReport(${r.id})" class="btn" style="padding: 6px 10px; font-size: 0.85em; background: var(--danger);">🗑️ Hapus</button>
+                  </td>
                 </tr>
               `).join('')}
             </tbody>
           </table>
         `;
 
-        document.getElementById('dashboardList').innerHTML = html;
+        document.getElementById('dashboardList').innerHTML = html || '<p style="color: var(--gray-dark);">Tidak ada laporan dengan filter ini.</p>';
       } catch (error) {
         console.error('Error loading dashboard:', error);
       }

@@ -78,13 +78,14 @@ async function initializeDatabase() {
       console.warn('Could not drop users table:', error.message);
     }
     
-    // Create users table with correct schema
+    // Create users table with correct schema including role
     const createTableSQL = `
       CREATE TABLE users (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
         email VARCHAR(100) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
+        role VARCHAR(50) DEFAULT 'user',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_email (email)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
@@ -188,7 +189,7 @@ app.post('/api/auth/login', async (req, res) => {
     
     let user;
     try {
-      const [users] = await connection.query('SELECT id, name, email, password FROM users WHERE email = ?', [email]);
+      const [users] = await connection.query('SELECT id, name, email, password, role FROM users WHERE email = ?', [email]);
       if (!users || users.length === 0) {
         connection.release();
         return res.status(401).json({ error: 'Email or password incorrect' });
@@ -222,7 +223,8 @@ app.post('/api/auth/login', async (req, res) => {
     req.session.user = {
       id: user.id,
       name: user.name,
-      email: user.email
+      email: user.email,
+      role: user.role
     };
 
     res.json({
@@ -230,7 +232,8 @@ app.post('/api/auth/login', async (req, res) => {
       user: {
         id: user.id,
         name: user.name,
-        email: user.email
+        email: user.email,
+        role: user.role
       }
     });
   } catch (error) {
