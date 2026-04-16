@@ -71,20 +71,22 @@ async function initializeDatabase() {
     const connection = await pool.getConnection();
     
     // Create users table if not exists
-    await connection.query(`
+    const createTableSQL = `
       CREATE TABLE IF NOT EXISTS users (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
         email VARCHAR(100) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `;
     
-    console.log('✓ Users table initialized');
+    await connection.query(createTableSQL);
+    console.log('✓ Users table initialized successfully');
     connection.release();
   } catch (error) {
-    console.error('Error initializing database:', error);
+    console.error('❌ Error initializing database:', error.message);
+    throw error;
   }
 }
 
@@ -99,9 +101,11 @@ app.get('/', (req, res) => {
 
 // Register
 app.post('/api/auth/register', async (req, res) => {
+  let connection = null;
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, passwordConfirm } = req.body;
 
+    // Validation
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Name, email, and password required' });
     }
@@ -110,35 +114,64 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    const connection = await pool.getConnection();
+    if (password !== passwordConfirm) {
+      return res.status(400).json({ error: 'Passwords do not match' });
+    }
+
+    connection = await pool.getConnection();
 
     // Check if email already exists
-    const [existing] = await connection.query('SELECT id FROM users WHERE email = ?', [email]);
-    if (existing.length > 0) {
+    try {
+      const [existing] = await connection.query('SELECT id FROM users WHERE email = ?', [email]);
+      if (existing && existing.length > 0) {
+        connection.release();
+        return res.status(400).json({ error: 'Email already registered' });
+      }
+    } catch (queryError) {
+      console.error('Error checking existing email:', queryError);
       connection.release();
-      return res.status(400).json({ error: 'Email already registered' });
+      return res.status(500).json({ error: 'Database error during email check' });
     }
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    let hashedPassword;
+    try {
+      hashedPassword = await bcrypt.hash(password, 10);
+    } catch (bcryptError) {
+      console.error('Error hashing password:', bcryptError);
+      connection.release();
+      return res.status(500).json({ error: 'Password encryption failed' });
+    }
 
-    // Create user
-    await connection.query(
-      'INSERT INTO users (name, email, password, created_at) VALUES (?, ?, ?, NOW())',
-      [name, email, hashedPassword]
-    );
+    // Insert user
+    try {
+      await connection.query(
+        'INSERT INTO users (name, email, password) VALUES (?, ?, ?)',
+        [name, email, hashedPassword]
+      );
+    } catch (insertError) {
+      console.error('Error inserting user:', insertError);
+      connection.release();
+      
+      if (insertError.code === 'ER_DUP_ENTRY') {
+        return res.status(400).json({ error: 'Email already registered' });
+      }
+      return res.status(500).json({ error: 'Failed to create user account' });
+    }
 
     connection.release();
 
-    res.status(201).json({ message: 'User registered successfully' });
+    res.status(201).json({ message: 'User registered successfully! Please login.' });
   } catch (error) {
     console.error('Error registering user:', error);
+    if (connection) connection.release();
     res.status(500).json({ error: 'Registration failed', details: error.message });
   }
 });
 
 // Login
 app.post('/api/auth/login', async (req, res) => {
+  let connection = null;
   try {
     const { email, password } = req.body;
 
@@ -146,21 +179,38 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password required' });
     }
 
-    const connection = await pool.getConnection();
-    const [users] = await connection.query('SELECT id, name, email, password FROM users WHERE email = ?', [email]);
-    connection.release();
-
-    if (users.length === 0) {
-      return res.status(401).json({ error: 'User not found' });
+    connection = await pool.getConnection();
+    
+    let user;
+    try {
+      const [users] = await connection.query('SELECT id, name, email, password FROM users WHERE email = ?', [email]);
+      if (!users || users.length === 0) {
+        connection.release();
+        return res.status(401).json({ error: 'Email or password incorrect' });
+      }
+      user = users[0];
+    } catch (queryError) {
+      console.error('Error querying user:', queryError);
+      connection.release();
+      return res.status(500).json({ error: 'Database error' });
     }
-
-    const user = users[0];
 
     // Verify password
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid password' });
+    let isValidPassword;
+    try {
+      isValidPassword = await bcrypt.compare(password, user.password);
+    } catch (bcryptError) {
+      console.error('Error comparing passwords:', bcryptError);
+      connection.release();
+      return res.status(500).json({ error: 'Password verification failed' });
     }
+
+    if (!isValidPassword) {
+      connection.release();
+      return res.status(401).json({ error: 'Email or password incorrect' });
+    }
+
+    connection.release();
 
     // Set session
     req.session.userId = user.id;
@@ -180,6 +230,7 @@ app.post('/api/auth/login', async (req, res) => {
     });
   } catch (error) {
     console.error('Error logging in:', error);
+    if (connection) connection.release();
     res.status(500).json({ error: 'Login failed', details: error.message });
   }
 });
