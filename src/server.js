@@ -65,6 +65,29 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
+// ===== Initialize Database Tables =====
+async function initializeDatabase() {
+  try {
+    const connection = await pool.getConnection();
+    
+    // Create users table if not exists
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        email VARCHAR(100) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    console.log('✓ Users table initialized');
+    connection.release();
+  } catch (error) {
+    console.error('Error initializing database:', error);
+  }
+}
+
 // ===== API Routes =====
 
 // 1. HOME PAGE
@@ -408,6 +431,16 @@ app.get('/api/admin/dashboard', async (req, res) => {
 
 // ===== Start Server =====
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+
+async function startServer() {
+  await initializeDatabase();
+  
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+startServer().catch(err => {
+  console.error('Failed to start server:', err);
+  process.exit(1);
 });
