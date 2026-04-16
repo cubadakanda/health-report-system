@@ -93,47 +93,60 @@ app.get('/api/statistics', async (req, res) => {
 });
 
 // 4. POST - Create New Health Report (FITUR 1: Laporan)
-app.post('/api/reports', upload.single('photo'), async (req, res) => {
-  try {
-    const { report_type, location, description, reporter_name, reporter_phone } = req.body;
-    let photoUrl = null;
-
-    if (req.file) {
-      const fileExtension = path.extname(req.file.originalname) || '.jpg';
-      const s3Key = `reports/${Date.now()}-${uuidv4()}${fileExtension}`;
-
-      const uploadResult = await s3.upload({
-        Bucket: process.env.S3_BUCKET_NAME,
-        Key: s3Key,
-        Body: req.file.buffer,
-        ContentType: req.file.mimetype,
-        ACL: 'public-read'
-      }).promise();
-
-      photoUrl = uploadResult.Location;
+app.post('/api/reports', (req, res) => {
+  upload.single('photo')(req, res, async (uploadError) => {
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      return res.status(400).json({
+        error: 'Invalid image upload',
+        details: uploadError.message
+      });
     }
 
-    if (!report_type || !location || !description) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    try {
+      const { report_type, location, description, reporter_name, reporter_phone } = req.body;
+      let photoUrl = null;
+
+      if (req.file) {
+        const fileExtension = path.extname(req.file.originalname) || '.jpg';
+        const s3Key = `reports/${Date.now()}-${uuidv4()}${fileExtension}`;
+
+        const uploadResult = await s3.upload({
+          Bucket: process.env.S3_BUCKET_NAME,
+          Key: s3Key,
+          Body: req.file.buffer,
+          ContentType: req.file.mimetype,
+          ACL: 'public-read'
+        }).promise();
+
+        photoUrl = uploadResult.Location;
+      }
+
+      if (!report_type || !location || !description) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      const connection = await pool.getConnection();
+      const result = await connection.query(
+        `INSERT INTO health_reports (report_type, location, description, photo_url, reporter_name, reporter_phone, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'pending', NOW())`,
+        [report_type, location, description, photoUrl, reporter_name, reporter_phone]
+      );
+      connection.release();
+
+      res.status(201).json({
+        id: result[0].insertId,
+        message: 'Report submitted successfully',
+        photoUrl: photoUrl
+      });
+    } catch (error) {
+      console.error('Error creating report:', error);
+      res.status(500).json({
+        error: 'Failed to create report',
+        details: error.message
+      });
     }
-
-    const connection = await pool.getConnection();
-    const result = await connection.query(
-      `INSERT INTO health_reports (report_type, location, description, photo_url, reporter_name, reporter_phone, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending', NOW())`,
-      [report_type, location, description, photoUrl, reporter_name, reporter_phone]
-    );
-    connection.release();
-
-    res.status(201).json({
-      id: result[0].insertId,
-      message: 'Report submitted successfully',
-      photoUrl: photoUrl
-    });
-  } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ error: 'Failed to create report' });
-  }
+  });
 });
 
 // 5. PUT - Update Report Status (FITUR 2: Admin manage)
