@@ -93,6 +93,24 @@ async function initializeDatabase() {
     
     await connection.query(createTableSQL);
     console.log('✓ Users table created successfully');
+    
+    // Seed admin user
+    const adminEmail = 'admin@healthreport.com';
+    const adminPassword = 'Admin@123456';
+    const adminHashedPassword = await bcrypt.hash(adminPassword, 10);
+    
+    try {
+      await connection.query(
+        'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
+        ['Administrator', adminEmail, adminHashedPassword, 'admin']
+      );
+      console.log('✓ Admin user created successfully');
+      console.log(`   Email: ${adminEmail}`);
+      console.log(`   Password: ${adminPassword}`);
+    } catch (seedError) {
+      console.warn('Could not seed admin user (may already exist):', seedError.message);
+    }
+    
     connection.release();
   } catch (error) {
     console.error('❌ Error initializing database:', error.message);

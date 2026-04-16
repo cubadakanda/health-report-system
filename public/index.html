@@ -416,10 +416,10 @@
     .modal-content {
       background-color: var(--white);
       padding: 40px;
-      border-radius: 12px;
+      border-radius: 14px;
       width: 100%;
-      max-width: 500px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      max-width: 480px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
       animation: slideUp 0.3s ease-out;
     }
 
@@ -435,13 +435,15 @@
     }
 
     .modal-header {
-      font-size: 1.5em;
+      font-size: 1.6em;
       font-weight: 700;
       color: var(--primary-green);
-      margin-bottom: 20px;
+      margin-bottom: 25px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      border-bottom: 2px solid var(--light-green);
+      padding-bottom: 15px;
     }
 
     .close-btn {
@@ -581,18 +583,35 @@
         <button onclick="showSection('report')" class="active">📋 Buat Laporan</button>
         <button onclick="showSection('dashboard')">📊 Dashboard</button>
         <button onclick="showSection('monitoring')">📈 Surveilans</button>
-        <button onclick="showSection('admin')">⚙️ Admin</button>
+        <button id="adminNavBtn" onclick="showSection('admin')" style="display: none;">⚙️ Admin</button>
       </div>
     </nav>
 
     <div class="content">
       <!-- LOGIN SECTION -->
-      <div id="authSection" class="section active" style="min-height: 300px; display: flex; align-items: center; justify-content: center;">
-        <div style="text-align: center; max-width: 400px;">
-          <h2>Selamat Datang 👋</h2>
-          <p style="color: var(--gray-dark); margin-bottom: 30px;">Silakan login atau daftar untuk menggunakan sistem laporan kesehatan</p>
-          <button onclick="openLoginTab()" class="btn" style="width: 100%; margin-bottom: 15px;">Masuk ke Akun</button>
-          <button onclick="openRegisterTab()" class="btn secondary" style="width: 100%;">Buat Akun Baru</button>
+      <div id="authSection" class="section active" style="min-height: 500px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(27, 143, 75, 0.05) 0%, rgba(232, 245, 233, 0.3) 100%);">
+        <div style="text-align: center; max-width: 450px; padding: 40px; background: white; border-radius: 12px; box-shadow: 0 8px 32px rgba(27, 143, 75, 0.1);">
+          <div style="font-size: 3em; margin-bottom: 15px;">🏥</div>
+          <h2 style="font-size: 2em; color: var(--primary-green); margin-bottom: 10px;">Health Report System</h2>
+          <p style="color: var(--primary-green); font-size: 0.95em; margin-bottom: 30px; font-weight: 500;">Sistem Laporan Kesehatan Lingkungan & Surveilans Penyakit</p>
+          
+          <div style="border-top: 2px solid var(--light-green); padding: 30px 0;">
+            <p style="color: var(--gray-dark); margin-bottom: 20px; font-size: 0.95em; line-height: 1.6;">
+              Lapor masalah kesehatan lingkungan Anda dan bantu kami menjaga komunitas tetap sehat.
+            </p>
+            <p style="color: var(--gray-dark); font-size: 0.9em; margin-bottom: 30px;">
+              Silakan login atau daftar untuk melanjutkan
+            </p>
+            
+            <button onclick="openLoginTab()" class="btn" style="width: 100%; margin-bottom: 12px; padding: 12px; font-size: 1em; background: var(--primary-green);">🔐 Masuk ke Akun</button>
+            <button onclick="openRegisterTab()" class="btn secondary" style="width: 100%; padding: 12px; font-size: 1em; background: var(--gray-dark);">📝 Buat Akun Baru</button>
+          </div>
+          
+          <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--light-green); color: var(--gray-dark); font-size: 0.85em;">
+            <p style="margin: 5px 0;">✓ Lapor dengan aman dan terpercaya</p>
+            <p style="margin: 5px 0;">✓ Pantau status laporan Anda</p>
+            <p style="margin: 5px 0;">✓ Bantu menjaga lingkungan sekitar</p>
+          </div>
         </div>
       </div>
       <!-- SECTION 1: Report Form -->
@@ -885,16 +904,25 @@
     function updateUserDisplay() {
       const userDisplay = document.getElementById('userDisplay');
       const authBtn = document.getElementById('btnToggleAuth');
+      const adminBtn = document.getElementById('adminNavBtn');
 
       if (isLoggedIn && currentUser) {
         userDisplay.innerHTML = `👤 ${currentUser.name}`;
         authBtn.innerHTML = 'Keluar';
         authBtn.onclick = logout;
         document.getElementById('authSection').style.display = 'none';
+        
+        // Show admin button only for admin users
+        if (isAdmin) {
+          adminBtn.style.display = 'inline-block';
+        } else {
+          adminBtn.style.display = 'none';
+        }
       } else {
         userDisplay.innerHTML = 'Belum Login';
         authBtn.innerHTML = 'Masuk';
         authBtn.onclick = toggleAuthModal;
+        adminBtn.style.display = 'none';
       }
     }
 
