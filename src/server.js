@@ -5,6 +5,8 @@ const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const bcrypt = require('bcryptjs');
+const session = require('express-session');
 require('dotenv').config();
 
 const app = express();
@@ -14,6 +16,14 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
+
+// Session Configuration
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'health-report-secret-key-2024',
+  resave: false,
+  saveUninitialized: true,
+  cookie: { maxAge: 1000 * 60 * 60 * 24, httpOnly: true }
+}));
 
 // ===== AWS S3 Configuration =====
 const s3 = new AWS.S3({
@@ -61,6 +71,107 @@ const pool = mysql.createPool({
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/../public/index.html');
 });
+
+// ===== AUTHENTICATION ROUTES =====
+
+// Register
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Name, email, and password required' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    const connection = await pool.getConnection();
+
+    // Check if email already exists
+    const [existing] = await connection.query('SELECT id FROM users WHERE email = ?', [email]);
+    if (existing.length > 0) {
+      connection.release();
+      return res.status(400).json({ error: 'Email already registered' });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user
+    await connection.query(
+      'INSERT INTO users (name, email, password, created_at) VALUES (?, ?, ?, NOW())',
+      [name, email, hashedPassword]
+    );
+
+    connection.release();
+
+    res.status(201).json({ message: 'User registered successfully' });
+  } catch (error) {
+    console.error('Error registering user:', error);
+    res.status(500).json({ error: 'Registration failed', details: error.message });
+  }
+});
+
+// Login
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password required' });
+    }
+
+    const connection = await pool.getConnection();
+    const [users] = await connection.query('SELECT id, name, email, password FROM users WHERE email = ?', [email]);
+    connection.release();
+
+    if (users.length === 0) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    const user = users[0];
+
+    // Verify password
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) {
+      return res.status(401).json({ error: 'Invalid password' });
+    }
+
+    // Set session
+    req.session.userId = user.id;
+    req.session.user = {
+      id: user.id,
+      name: user.name,
+      email: user.email
+    };
+
+    res.json({
+      message: 'Login successful',
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email
+      }
+    });
+  } catch (error) {
+    console.error('Error logging in:', error);
+    res.status(500).json({ error: 'Login failed', details: error.message });
+  }
+});
+
+// Logout
+app.post('/api/auth/logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      return res.status(500).json({ error: 'Logout failed' });
+    }
+    res.json({ message: 'Logged out successfully' });
+  });
+});
+
+// ===== END AUTHENTICATION ROUTES =====
 
 // 2. GET All Reports (untuk dashboard)
 app.get('/api/reports', async (req, res) => {
@@ -173,27 +284,69 @@ app.post('/api/reports', (req, res) => {
   });
 });
 
-// 5. PUT - Update Report Status (FITUR 2: Admin manage)
+// 5. PUT - Update Report Status or Details
 app.put('/api/reports/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, admin_notes } = req.body;
-
-    if (!status) {
-      return res.status(400).json({ error: 'Status required' });
-    }
+    const { status, admin_notes, report_type, location, description } = req.body;
 
     const connection = await pool.getConnection();
-    await connection.query(
-      `UPDATE health_reports SET status = ?, admin_notes = ? WHERE id = ?`,
-      [status, admin_notes || null, id]
-    );
-    connection.release();
 
+    // Check if updating status (admin) or details (user edit)
+    if (status) {
+      // Admin update status
+      await connection.query(
+        `UPDATE health_reports SET status = ?, admin_notes = ? WHERE id = ?`,
+        [status, admin_notes || null, id]
+      );
+    } else if (report_type || location || description) {
+      // User edit report details
+      await connection.query(
+        `UPDATE health_reports SET report_type = ?, location = ?, description = ? WHERE id = ?`,
+        [report_type, location, description, id]
+      );
+    } else {
+      connection.release();
+      return res.status(400).json({ error: 'Nothing to update' });
+    }
+
+    connection.release();
     res.json({ message: 'Report updated successfully' });
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ error: 'Failed to update report' });
+  }
+});
+
+// 5b. DELETE - Delete Report
+app.delete('/api/reports/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const connection = await pool.getConnection();
+    
+    // Get the report to find photo URL if needed
+    const [reports] = await connection.query(
+      'SELECT photo_url FROM health_reports WHERE id = ?',
+      [id]
+    );
+
+    if (reports.length === 0) {
+      connection.release();
+      return res.status(404).json({ error: 'Report not found' });
+    }
+
+    // Delete from database
+    await connection.query('DELETE FROM health_reports WHERE id = ?', [id]);
+    connection.release();
+
+    // If there's a photo in S3, you could delete it here if desired
+    // For now, we'll keep it simple and just delete from DB
+
+    res.json({ message: 'Report deleted successfully' });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Failed to delete report' });
   }
 });
 
