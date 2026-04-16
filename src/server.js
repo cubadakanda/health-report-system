@@ -19,12 +19,29 @@ app.use(express.static('public'));
 const s3 = new AWS.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_REGION
+  region: process.env.AWS_REGION,
+  signatureVersion: 'v4'
 });
 
 // ===== Upload Configuration =====
 // Keep the file in memory, then upload to S3 inside the route handler.
 const upload = multer({ storage: multer.memoryStorage() });
+
+async function resolvePhotoUrl(photoValue) {
+  if (!photoValue) {
+    return null;
+  }
+
+  if (/^https?:\/\//i.test(photoValue)) {
+    return photoValue;
+  }
+
+  return s3.getSignedUrlPromise('getObject', {
+    Bucket: process.env.S3_BUCKET_NAME,
+    Key: photoValue,
+    Expires: 3600
+  });
+}
 
 // ===== Database Connection Pool =====
 const pool = mysql.createPool({
@@ -54,7 +71,15 @@ app.get('/api/reports', async (req, res) => {
        FROM health_reports ORDER BY created_at DESC`
     );
     connection.release();
-    res.json(rows);
+
+    const reports = await Promise.all(
+      rows.map(async (report) => ({
+        ...report,
+        photo_url: await resolvePhotoUrl(report.photo_url)
+      }))
+    );
+
+    res.json(reports);
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ error: 'Database error' });
@@ -81,7 +106,7 @@ app.get('/api/statistics', async (req, res) => {
     `);
     
     connection.release();
-    
+
     res.json({
       byType: stats,
       byStatus: totalByStatus
@@ -115,11 +140,10 @@ app.post('/api/reports', (req, res) => {
           Bucket: process.env.S3_BUCKET_NAME,
           Key: s3Key,
           Body: req.file.buffer,
-          ContentType: req.file.mimetype,
-          ACL: 'public-read'
+          ContentType: req.file.mimetype
         }).promise();
 
-        photoUrl = uploadResult.Location;
+        photoUrl = uploadResult.Key;
       }
 
       if (!report_type || !location || !description) {
