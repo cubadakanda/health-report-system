@@ -583,7 +583,6 @@
         <button onclick="showSection('report')" class="active">📋 Buat Laporan</button>
         <button onclick="showSection('dashboard')">📊 Dashboard</button>
         <button onclick="showSection('monitoring')">📈 Surveilans</button>
-        <button id="adminNavBtn" onclick="showSection('admin')" style="display: none;">⚙️ Admin</button>
       </div>
     </nav>
 
@@ -603,8 +602,8 @@
               Silakan login atau daftar untuk melanjutkan
             </p>
             
-            <button onclick="openLoginTab()" class="btn" style="width: 100%; margin-bottom: 12px; padding: 12px; font-size: 1em; background: var(--primary-green);">🔐 Masuk ke Akun</button>
-            <button onclick="openRegisterTab()" class="btn secondary" style="width: 100%; padding: 12px; font-size: 1em; background: var(--gray-dark);">📝 Buat Akun Baru</button>
+            <button onclick="openLoginTab()" class="btn" style="width: 100%; margin-bottom: 12px; padding: 14px; font-size: 1em; background: linear-gradient(135deg, var(--primary-green) 0%, var(--primary-green-light) 100%); font-weight: 600; letter-spacing: 0.5px; box-shadow: 0 4px 12px rgba(27, 143, 75, 0.2);">🔐 Masuk ke Akun</button>
+            <button onclick="openRegisterTab()" class="btn secondary" style="width: 100%; padding: 14px; font-size: 1em; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: 600; letter-spacing: 0.5px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);">📝 Buat Akun Baru</button>
           </div>
           
           <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--light-green); color: var(--gray-dark); font-size: 0.85em;">
@@ -704,24 +703,6 @@
         <div id="monitoringList"></div>
       </div>
 
-      <!-- SECTION 4: Admin Panel -->
-      <div id="admin" class="section" style="display: none;">
-        <div id="adminContent" style="display: none;">
-          <h2>⚙️ Admin Panel - Kelola Laporan</h2>
-          <div class="stats-container" id="adminStats"></div>
-          
-          <h3>Laporan Pending</h3>
-          <div class="form-group" style="max-width: 300px;">
-            <input type="text" id="adminSearch" placeholder="Cari laporan..." onchange="loadAdminReports()">
-          </div>
-          <div id="adminReports"></div>
-        </div>
-        
-        <div id="adminNotAllowed" style="text-align: center; padding: 60px 20px;">
-          <h3 style="color: var(--danger); margin-bottom: 20px;">❌ Akses Ditolak</h3>
-          <p style="color: var(--gray-dark); font-size: 1.1em;">Anda tidak memiliki akses ke Admin Panel. Hanya administrator yang bisa mengakses fitur ini.</p>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -904,25 +885,16 @@
     function updateUserDisplay() {
       const userDisplay = document.getElementById('userDisplay');
       const authBtn = document.getElementById('btnToggleAuth');
-      const adminBtn = document.getElementById('adminNavBtn');
 
       if (isLoggedIn && currentUser) {
         userDisplay.innerHTML = `👤 ${currentUser.name}`;
         authBtn.innerHTML = 'Keluar';
         authBtn.onclick = logout;
         document.getElementById('authSection').style.display = 'none';
-        
-        // Show admin button only for admin users
-        if (isAdmin) {
-          adminBtn.style.display = 'inline-block';
-        } else {
-          adminBtn.style.display = 'none';
-        }
       } else {
         userDisplay.innerHTML = 'Belum Login';
         authBtn.innerHTML = 'Masuk';
         authBtn.onclick = toggleAuthModal;
-        adminBtn.style.display = 'none';
       }
     }
 
@@ -971,12 +943,6 @@
         return;
       }
 
-      // Check admin access
-      if (sectionId === 'admin' && !isAdmin) {
-        document.getElementById('adminContent').style.display = 'none';
-        document.getElementById('adminNotAllowed').style.display = 'block';
-      }
-
       document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
       document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
       
@@ -987,7 +953,6 @@
         if (event && event.target) event.target.classList.add('active');
 
         if (sectionId === 'dashboard') loadDashboard();
-        if (sectionId === 'admin' && isAdmin) loadAdminDashboard();
         if (sectionId === 'report') loadReports();
         if (sectionId === 'monitoring') loadMonitoring();
       }
@@ -1076,9 +1041,28 @@
 
         if (response.ok) {
           alert('Laporan berhasil dihapus!');
-          loadReports();
+          loadDashboard();
         } else {
           alert('Gagal menghapus laporan');
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    async function updateReportStatus(id, newStatus) {
+      try {
+        const response = await fetch(`${API_URL}/reports/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus, admin_notes: '' })
+        });
+
+        if (response.ok) {
+          alert(`Status berhasil diubah menjadi ${newStatus}!`);
+          loadDashboard();
+        } else {
+          alert('Gagal mengubah status');
         }
       } catch (error) {
         alert('Error: ' + error.message);
@@ -1104,7 +1088,7 @@
               <div class="card-badge ${r.status}">${r.status.toUpperCase()}</div>
               <div class="card-actions">
                 <button class="btn" onclick="openEditModal(${JSON.stringify(r).replace(/"/g, '&quot;')})">✏️ Edit</button>
-                <button class="btn danger" onclick="deleteReport(${r.id})">🗑️ Hapus</button>
+                ${isAdmin ? `<button class="btn danger" onclick="deleteReport(${r.id})">🗑️ Hapus</button>` : ''}
               </div>
             </div>
           </div>
@@ -1164,11 +1148,21 @@
                   <td>#${r.id}</td>
                   <td>${r.report_type}</td>
                   <td>${r.location}</td>
-                  <td><span class="card-badge ${r.status}">${r.status}</span></td>
+                  <td>
+                    ${isAdmin ? `
+                      <select onchange="updateReportStatus(${r.id}, this.value)" style="padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; background: white;">
+                        <option value="pending" ${r.status === 'pending' ? 'selected' : ''}>⏳ Pending</option>
+                        <option value="verified" ${r.status === 'verified' ? 'selected' : ''}>✅ Verified</option>
+                        <option value="rejected" ${r.status === 'rejected' ? 'selected' : ''}>❌ Rejected</option>
+                      </select>
+                    ` : `
+                      <span class="card-badge ${r.status}">${r.status}</span>
+                    `}
+                  </td>
                   <td>${new Date(r.created_at).toLocaleDateString('id-ID')}</td>
                   <td>
                     <button onclick="openEditModal({id: ${r.id}, report_type: '${r.report_type}', location: '${r.location}', description: '${r.description.replace(/'/g, "\\'")}'})" class="btn" style="padding: 6px 10px; font-size: 0.85em; background: var(--primary-green);">✏️ Edit</button>
-                    <button onclick="deleteReport(${r.id})" class="btn" style="padding: 6px 10px; font-size: 0.85em; background: var(--danger);">🗑️ Hapus</button>
+                    ${isAdmin ? `<button onclick="deleteReport(${r.id})" class="btn" style="padding: 6px 10px; font-size: 0.85em; background: var(--danger);">🗑️ Hapus</button>` : ''}
                   </td>
                 </tr>
               `).join('')}
@@ -1179,61 +1173,6 @@
         document.getElementById('dashboardList').innerHTML = html || '<p style="color: var(--gray-dark);">Tidak ada laporan dengan filter ini.</p>';
       } catch (error) {
         console.error('Error loading dashboard:', error);
-      }
-    }
-
-    // Load Admin Dashboard
-    async function loadAdminDashboard() {
-      await loadDashboard();
-      loadAdminReports();
-    }
-
-    async function loadAdminReports() {
-      try {
-        const response = await fetch(`${API_URL}/reports`);
-        const reports = await response.json();
-        
-        const pending = reports.filter(r => r.status === 'pending');
-        
-        const html = pending.length ? pending.map(r => `
-          <div class="card" style="margin-bottom: 15px;">
-            <div class="card-header">#${r.id} - ${r.report_type}</div>
-            <div class="card-body">
-              <strong>Lokasi:</strong> ${r.location}<br>
-              <strong>Deskripsi:</strong> ${r.description}<br>
-              <strong>Pelapor:</strong> ${r.reporter_name || 'Anonymous'} (${r.reporter_phone || 'N/A'})<br>
-              ${r.photo_url ? `<img src="${r.photo_url}" alt="Foto" style="max-width: 100%; margin: 10px 0; border-radius: 5px;">` : ''}
-              <div style="margin-top: 10px;">
-                <select onchange="updateReportStatus(${r.id}, this.value)" style="width: auto; padding: 8px; border: 2px solid var(--primary-green); border-radius: 6px;">
-                  <option value="">-- Update Status --</option>
-                  <option value="verified">✓ Verified</option>
-                  <option value="rejected">✗ Rejected</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        `).join('') : '<p>Tidak ada laporan pending</p>';
-
-        document.getElementById('adminReports').innerHTML = html;
-      } catch (error) {
-        console.error('Error loading admin reports:', error);
-      }
-    }
-
-    async function updateReportStatus(id, status) {
-      try {
-        const response = await fetch(`${API_URL}/reports/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status, admin_notes: 'Verified by admin' })
-        });
-
-        if (response.ok) {
-          alert('Status updated!');
-          loadAdminReports();
-        }
-      } catch (error) {
-        console.error('Error updating report:', error);
       }
     }
 
