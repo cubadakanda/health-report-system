@@ -112,7 +112,7 @@ app.get('/', (req, res) => {
 app.post('/api/auth/register', async (req, res) => {
   let connection = null;
   try {
-    const { name, email, password, passwordConfirm } = req.body;
+    const { name, email, password } = req.body;
 
     // Validation
     if (!name || !email || !password) {
@@ -121,10 +121,6 @@ app.post('/api/auth/register', async (req, res) => {
 
     if (password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
-    }
-
-    if (password !== passwordConfirm) {
-      return res.status(400).json({ error: 'Passwords do not match' });
     }
 
     connection = await pool.getConnection();
