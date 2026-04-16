@@ -70,19 +70,28 @@ async function initializeDatabase() {
   try {
     const connection = await pool.getConnection();
     
-    // Create users table if not exists
+    // Drop old users table if it exists (to reset schema)
+    try {
+      await connection.query('DROP TABLE IF EXISTS users');
+      console.log('✓ Dropped old users table');
+    } catch (error) {
+      console.warn('Could not drop users table:', error.message);
+    }
+    
+    // Create users table with correct schema
     const createTableSQL = `
-      CREATE TABLE IF NOT EXISTS users (
+      CREATE TABLE users (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
         email VARCHAR(100) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_email (email)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `;
     
     await connection.query(createTableSQL);
-    console.log('✓ Users table initialized successfully');
+    console.log('✓ Users table created successfully');
     connection.release();
   } catch (error) {
     console.error('❌ Error initializing database:', error.message);
