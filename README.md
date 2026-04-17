@@ -38,9 +38,14 @@ Aplikasi ini memiliki 2 tipe pengguna:
 - Melihat riwayat audit (audit logs)
 
 **Akun Admin Khusus:**
-- Email: `admin@health-report.com`
-- Password: `Admin123!`
+- Email: `admin@healthreport.com`
+- Password: `Admin@123456`
 - Akun ini sudah tersedia di database dan dapat langsung digunakan untuk akses admin dashboard
+
+**Akun User (Test):**
+- Email: `parisan@gmail.com`
+- Password: `123456`
+- Akun user untuk testing fitur pelaporan kesehatan
 
 ## Struktur Proyek
 - `src/server.js`: backend Express dan API.
