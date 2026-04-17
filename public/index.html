@@ -853,6 +853,19 @@
     </div>
   </div>
 
+  <!-- Photo Modal (untuk lihat foto besar) -->
+  <div id="photoModal" class="modal">
+    <div class="modal-content" style="max-width: 600px; text-align: center;">
+      <div class="modal-header">
+        <span id="photoModalTitle">Foto Laporan</span>
+        <button class="close-btn" onclick="closePhotoModal()">✕</button>
+      </div>
+      <div style="padding: 30px; background: var(--gray-light);">
+        <img id="photoModalImage" src="" alt="Foto" style="max-width: 100%; max-height: 500px; border-radius: 8px;">
+      </div>
+    </div>
+  </div>
+
   <!-- Edit Modal -->
   <div id="editModal" class="modal">
     <div class="modal-content">
@@ -863,6 +876,8 @@
 
       <form onsubmit="saveReport(event)">
         <input type="hidden" id="editId">
+        
+        <div id="editPhotoDisplay"></div>
         
         <div class="form-group">
           <label for="editType">Tipe Laporan</label>
@@ -1022,11 +1037,33 @@
       document.getElementById('editModal').classList.remove('active');
     }
 
+    function openPhotoModal(photoUrl, reportType) {
+      document.getElementById('photoModalTitle').textContent = `Foto - ${reportType}`;
+      document.getElementById('photoModalImage').src = photoUrl;
+      document.getElementById('photoModal').classList.add('active');
+    }
+
+    function closePhotoModal() {
+      document.getElementById('photoModal').classList.remove('active');
+    }
+
     function openEditModal(report) {
       document.getElementById('editId').value = report.id;
       document.getElementById('editType').value = report.report_type;
       document.getElementById('editLocation').value = report.location;
       document.getElementById('editDescription').value = report.description;
+      
+      // Display foto di edit modal
+      const photoSection = document.getElementById('editPhotoDisplay');
+      if (photoSection && report.photo_url) {
+        photoSection.innerHTML = `
+          <div style="margin: 15px 0; padding: 15px; background: var(--gray-light); border-radius: 8px; text-align: center;">
+            <p style="font-size: 0.9em; color: var(--gray-dark); margin-bottom: 10px;">📸 Foto Laporan:</p>
+            <img src="${report.photo_url}" alt="Foto" style="max-width: 100%; max-height: 300px; border-radius: 8px; cursor: pointer;" onclick="openPhotoModal('${report.photo_url}', '${report.report_type}')">
+          </div>
+        `;
+      }
+      
       document.getElementById('editModal').classList.add('active');
     }
 
@@ -1232,6 +1269,7 @@
                 <th>ID</th>
                 <th>Tipe</th>
                 <th>Lokasi</th>
+                <th>Foto</th>
                 <th>Status</th>
                 <th>Tanggal</th>
                 <th>Aksi</th>
@@ -1243,6 +1281,13 @@
                   <td>#${r.id}</td>
                   <td>${r.report_type}</td>
                   <td>${r.location}</td>
+                  <td style="text-align: center;">
+                    ${r.photo_url ? `
+                      <img src="${r.photo_url}" alt="Foto" style="width: 50px; height: 50px; object-fit: cover; border-radius: 5px; cursor: pointer;" onclick="openPhotoModal('${r.photo_url}', '${r.report_type}')">
+                    ` : `
+                      <span style="color: var(--gray-dark); font-size: 0.9em;">-</span>
+                    `}
+                  </td>
                   <td>
                     ${isAdmin ? `
                       <select onchange="updateReportStatus(${r.id}, this.value)" style="padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; background: white;">
@@ -1256,7 +1301,7 @@
                   </td>
                   <td>${new Date(r.created_at).toLocaleDateString('id-ID')}</td>
                   <td>
-                    <button onclick="openEditModal({id: ${r.id}, report_type: '${r.report_type}', location: '${r.location}', description: '${r.description.replace(/'/g, "\\'")}'})" class="btn" style="padding: 6px 10px; font-size: 0.85em; background: var(--primary-green);">✏️ Edit</button>
+                    <button onclick="openEditModal({id: ${r.id}, report_type: '${r.report_type}', location: '${r.location}', description: '${r.description.replace(/'/g, "\\'")}', photo_url: '${r.photo_url || ''}'})" class="btn" style="padding: 6px 10px; font-size: 0.85em; background: var(--primary-green);">✏️ Edit</button>
                     ${isAdmin ? `<button onclick="deleteReport(${r.id})" class="btn" style="padding: 6px 10px; font-size: 0.85em; background: var(--danger);">🗑️ Hapus</button>` : ''}
                   </td>
                 </tr>
