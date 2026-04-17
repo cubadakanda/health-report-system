@@ -29,23 +29,34 @@
 
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f8fafb;
+      background:
+        linear-gradient(180deg, rgba(248, 250, 251, 0.78) 0%, rgba(248, 250, 251, 0.90) 100%),
+        url('assets/backgrounds/save-earth.jpg');
+      background-size: cover;
+      background-attachment: fixed;
+      background-position: center center;
       min-height: 100vh;
       padding: 20px;
       color: var(--text-dark);
+      position: relative;
     }
 
     .container {
       max-width: 1200px;
       margin: 0 auto;
-      background: var(--white);
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(8px);
       border-radius: 12px;
       box-shadow: 0 10px 40px rgba(0,0,0,0.1);
       overflow: hidden;
     }
 
     header {
-      background: linear-gradient(135deg, var(--primary-green) 0%, #0d6838 100%);
+      background:
+        linear-gradient(135deg, rgba(27, 143, 75, 0.92) 0%, rgba(13, 104, 56, 0.92) 100%),
+        url('assets/backgrounds/emerald.jpg');
+      background-size: cover;
+      background-position: center center;
       color: white;
       padding: 40px 30px;
       text-align: center;
@@ -85,11 +96,12 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: var(--gray-light);
+      background: rgba(245, 247, 250, 0.88);
       padding: 15px 30px;
       flex-wrap: wrap;
       gap: 10px;
       border-bottom: 2px solid var(--light-green);
+      backdrop-filter: blur(8px);
     }
 
     .nav-buttons {
@@ -157,6 +169,7 @@
     .content {
       padding: 40px;
       min-height: 500px;
+      background: transparent;
     }
 
     .content h2 {
