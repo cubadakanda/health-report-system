@@ -393,6 +393,78 @@
       border: 2px solid var(--light-green);
       box-shadow: 0 4px 12px rgba(27, 143, 75, 0.1);
     }
+    
+      .reference-section {
+        background: linear-gradient(180deg, #f4fbf5 0%, #ffffff 100%);
+        border: 1px solid #d7eadb;
+        border-radius: 14px;
+        padding: 18px;
+        margin: 18px 0 24px;
+      }
+    
+      .reference-section h3 {
+        font-size: 1.05em;
+        color: var(--primary-green-dark);
+        margin-bottom: 8px;
+      }
+    
+      .reference-section p {
+        color: var(--gray-dark);
+        font-size: 0.92em;
+        margin-bottom: 16px;
+      }
+    
+      .reference-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 14px;
+      }
+    
+      .reference-card {
+        background: white;
+        border: 1px solid #dce8de;
+        border-radius: 14px;
+        overflow: hidden;
+        cursor: pointer;
+        box-shadow: 0 8px 18px rgba(27, 143, 75, 0.06);
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+      }
+    
+      .reference-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 24px rgba(27, 143, 75, 0.12);
+        border-color: var(--primary-green);
+      }
+    
+      .reference-card.selected {
+        border-color: var(--primary-green);
+        box-shadow: 0 12px 24px rgba(27, 143, 75, 0.18);
+      }
+    
+      .reference-card img {
+        width: 100%;
+        height: 120px;
+        object-fit: cover;
+        display: block;
+        background: #f2f8f3;
+      }
+    
+      .reference-card-content {
+        padding: 12px;
+      }
+    
+      .reference-card-content strong {
+        display: block;
+        color: var(--primary-green-dark);
+        margin-bottom: 4px;
+        font-size: 0.98em;
+      }
+    
+      .reference-card-content span {
+        color: var(--gray-dark);
+        font-size: 0.84em;
+        line-height: 1.4;
+      }
 
     /* Table */
     table {
@@ -713,6 +785,12 @@
 
         <div id="reportAlert"></div>
 
+        <div class="reference-section">
+          <h3>Referensi Tipe Laporan</h3>
+          <p>Klik gambar di bawah untuk memilih tipe laporan. Ini membantu Anda cepat menentukan kategori sebelum upload foto bukti.</p>
+          <div id="reportTypeReferenceGrid" class="reference-grid"></div>
+        </div>
+
         <form id="reportForm" onsubmit="submitReport(event)">
           <div class="responsive-form">
             <div class="form-group">
@@ -914,6 +992,107 @@
     let currentUser = null;
     let isLoggedIn = false;
     let isAdmin = false;
+
+    const reportTypeReferences = [
+      {
+        value: 'Air Tercemar',
+        title: 'Air Tercemar',
+        description: 'Contoh: air sumur berubah warna, bau tidak sedap, atau limbah masuk ke sungai.',
+        colorA: '#1b8f4b',
+        colorB: '#79c97d',
+        icon: '💧'
+      },
+      {
+        value: 'Udara Tercemar',
+        title: 'Udara Tercemar',
+        description: 'Contoh: asap pabrik, debu tebal, atau bau kimia menyengat di udara.',
+        colorA: '#0d6838',
+        colorB: '#74b9ff',
+        icon: '🌫️'
+      },
+      {
+        value: 'Sampah Liar',
+        title: 'Sampah Liar',
+        description: 'Contoh: tumpukan sampah di jalan, selokan penuh, atau TPS ilegal.',
+        colorA: '#1f7a3b',
+        colorB: '#f6c85f',
+        icon: '🗑️'
+      },
+      {
+        value: 'Tempat Kotor',
+        title: 'Tempat Kotor',
+        description: 'Contoh: toilet umum kotor, area publik tidak terawat, atau lingkungan kumuh.',
+        colorA: '#166534',
+        colorB: '#c7f0d1',
+        icon: '🧼'
+      },
+      {
+        value: 'Penyakit Menular',
+        title: 'Penyakit Menular',
+        description: 'Contoh: kasus demam berdarah, diare, atau penularan penyakit di satu wilayah.',
+        colorA: '#c0392b',
+        colorB: '#f9a8a8',
+        icon: '🦠'
+      },
+      {
+        value: 'Lainnya',
+        title: 'Lainnya',
+        description: 'Untuk masalah lain yang belum masuk kategori di atas.',
+        colorA: '#2c7a7b',
+        colorB: '#9ae6b4',
+        icon: '📌'
+      }
+    ];
+
+    function buildReferenceImage(referensi) {
+      const gradientId = `grad-${referensi.value.replace(/\s+/g, '-')}`;
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" role="img" aria-label="${referensi.title}">
+          <defs>
+            <linearGradient id="${gradientId}" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="${referensi.colorA}" />
+              <stop offset="100%" stop-color="${referensi.colorB}" />
+            </linearGradient>
+          </defs>
+          <rect width="320" height="180" rx="18" fill="url(#${gradientId})" />
+          <circle cx="255" cy="44" r="28" fill="rgba(255,255,255,0.16)" />
+          <circle cx="46" cy="134" r="40" fill="rgba(255,255,255,0.12)" />
+          <text x="34" y="82" font-size="46">${referensi.icon}</text>
+          <text x="92" y="76" fill="#ffffff" font-size="27" font-family="Segoe UI, Arial, sans-serif" font-weight="700">${referensi.title}</text>
+          <text x="92" y="108" fill="#ffffff" font-size="15" font-family="Segoe UI, Arial, sans-serif" opacity="0.95">Klik untuk memilih kategori ini</text>
+          <rect x="92" y="124" width="170" height="18" rx="9" fill="rgba(255,255,255,0.22)" />
+        </svg>
+      `;
+      return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+    }
+
+    function selectReportType(type) {
+      const select = document.getElementById('reportType');
+      if (select) {
+        select.value = type;
+      }
+
+      document.querySelectorAll('.reference-card').forEach(card => {
+        card.classList.toggle('selected', card.dataset.type === type);
+      });
+    }
+
+    function renderReportTypeReferences() {
+      const grid = document.getElementById('reportTypeReferenceGrid');
+      if (!grid) return;
+
+      const currentType = document.getElementById('reportType')?.value || '';
+
+      grid.innerHTML = reportTypeReferences.map(referensi => `
+        <div class="reference-card ${currentType === referensi.value ? 'selected' : ''}" data-type="${referensi.value}" onclick="selectReportType('${referensi.value}')">
+          <img src="${buildReferenceImage(referensi)}" alt="${referensi.title}">
+          <div class="reference-card-content">
+            <strong>${referensi.title}</strong>
+            <span>${referensi.description}</span>
+          </div>
+        </div>
+      `).join('');
+    }
 
     // ===== AUTHENTICATION =====
     async function login(e) {
@@ -1372,6 +1551,7 @@
     window.onclick = function(event) {
       const authModal = document.getElementById('authModal');
       const editModal = document.getElementById('editModal');
+      const photoModal = document.getElementById('photoModal');
       
       if (event.target === authModal) {
         authModal.classList.remove('active');
@@ -1379,9 +1559,13 @@
       if (event.target === editModal) {
         editModal.classList.remove('active');
       }
+      if (event.target === photoModal) {
+        photoModal.classList.remove('active');
+      }
     };
 
     // Initial load
+    renderReportTypeReferences();
     updateUserDisplay();
   </script>
 </body>
