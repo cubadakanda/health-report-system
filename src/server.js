@@ -80,7 +80,7 @@ async function initializeDatabase() {
     
     // Create users table with correct schema including role
     const createTableSQL = `
-      CREATE TABLE users (
+      CREATE TABLE IF NOT EXISTS users (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
         email VARCHAR(100) UNIQUE NOT NULL,
@@ -93,6 +93,50 @@ async function initializeDatabase() {
     
     await connection.query(createTableSQL);
     console.log('✓ Users table created successfully');
+    
+    // Create health_reports table
+    const createReportsTableSQL = `
+      CREATE TABLE IF NOT EXISTS health_reports (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        report_type VARCHAR(100) NOT NULL,
+        location VARCHAR(255) NOT NULL,
+        description LONGTEXT NOT NULL,
+        photo_url VARCHAR(500),
+        reporter_name VARCHAR(100),
+        reporter_phone VARCHAR(20),
+        status ENUM('pending', 'verified', 'rejected') DEFAULT 'pending',
+        admin_notes LONGTEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        
+        INDEX idx_status (status),
+        INDEX idx_location (location),
+        INDEX idx_report_type (report_type),
+        INDEX idx_created_at (created_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `;
+    
+    await connection.query(createReportsTableSQL);
+    console.log('✓ Health Reports table created successfully');
+    
+    // Create disease_statistics table
+    const createStatsTableSQL = `
+      CREATE TABLE IF NOT EXISTS disease_statistics (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        disease_type VARCHAR(100) NOT NULL,
+        location VARCHAR(255) NOT NULL,
+        count INT DEFAULT 0,
+        week INT,
+        year INT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        
+        INDEX idx_location (location),
+        INDEX idx_disease_type (disease_type)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `;
+    
+    await connection.query(createStatsTableSQL);
+    console.log('✓ Disease Statistics table created successfully');
     
     // Seed admin user
     const adminEmail = 'admin@healthreport.com';
