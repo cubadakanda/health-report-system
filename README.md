@@ -21,6 +21,27 @@ Health Report System adalah aplikasi pelaporan kesehatan lingkungan berbasis web
 4. Upload foto bukti laporan ke AWS S3.
 5. Monitoring laporan berdasarkan lokasi dan status.
 
+## Akun Pengguna
+
+Aplikasi ini memiliki 2 tipe pengguna:
+
+### 1. User (Masyarakat)
+- Dapat membuat laporan baru tentang kesehatan lingkungan
+- Dapat melihat laporan yang telah dibuat
+- Dapat mengedit atau menghapus laporan milik sendiri
+- Dapat melihat status verifikasi laporan mereka
+
+### 2. Admin (Petugas Verifikasi)
+- Akses ke seluruh laporan dari semua user
+- Dapat memverifikasi atau menolak laporan
+- Melihat statistik dan monitoring laporan
+- Melihat riwayat audit (audit logs)
+
+**Akun Admin Khusus:**
+- Email: `admin@health-report.com`
+- Password: `Admin123!`
+- Akun ini sudah tersedia di database dan dapat langsung digunakan untuk akses admin dashboard
+
 ## Struktur Proyek
 - `src/server.js`: backend Express dan API.
 - `public/index.html`: tampilan frontend aplikasi.
