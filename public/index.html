@@ -1005,12 +1005,14 @@
     }
 
     function openLoginTab() {
+      document.getElementById('authModal').classList.add('active');
       document.getElementById('loginTab').style.display = 'block';
       document.getElementById('registerTab').style.display = 'none';
       document.getElementById('modalTitle').innerHTML = 'Masuk ke Akun';
     }
 
     function openRegisterTab() {
+      document.getElementById('authModal').classList.add('active');
       document.getElementById('loginTab').style.display = 'none';
       document.getElementById('registerTab').style.display = 'block';
       document.getElementById('modalTitle').innerHTML = 'Buat Akun Baru';
