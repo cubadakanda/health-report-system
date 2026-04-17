@@ -386,25 +386,36 @@ app.post('/api/reports', (req, res) => {
     try {
       const { report_type, location, description, reporter_name, reporter_phone } = req.body;
       let photoUrl = null;
+      let s3UploadWarning = null;
 
-      if (req.file) {
-        const fileExtension = path.extname(req.file.originalname) || '.jpg';
-        const s3Key = `reports/${Date.now()}-${uuidv4()}${fileExtension}`;
-
-        const uploadResult = await s3.upload({
-          Bucket: process.env.S3_BUCKET_NAME,
-          Key: s3Key,
-          Body: req.file.buffer,
-          ContentType: req.file.mimetype
-        }).promise();
-
-        photoUrl = uploadResult.Key;
-      }
-
+      // Validate required fields
       if (!report_type || !location || !description) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
+      // Try to upload to S3 if file provided, but don't fail the entire request if S3 fails
+      if (req.file) {
+        try {
+          const fileExtension = path.extname(req.file.originalname) || '.jpg';
+          const s3Key = `reports/${Date.now()}-${uuidv4()}${fileExtension}`;
+
+          const uploadResult = await s3.upload({
+            Bucket: process.env.S3_BUCKET_NAME,
+            Key: s3Key,
+            Body: req.file.buffer,
+            ContentType: req.file.mimetype
+          }).promise();
+
+          photoUrl = uploadResult.Key;
+          console.log('✓ Photo uploaded to S3:', photoUrl);
+        } catch (s3Error) {
+          console.warn('⚠ S3 upload failed (proceeding without photo):', s3Error.message);
+          s3UploadWarning = `Photo upload failed: ${s3Error.message}. Report saved without photo.`;
+          photoUrl = null;
+        }
+      }
+
+      // Save report to database
       const connection = await pool.getConnection();
       const result = await connection.query(
         `INSERT INTO health_reports (report_type, location, description, photo_url, reporter_name, reporter_phone, status, created_at)
@@ -413,10 +424,13 @@ app.post('/api/reports', (req, res) => {
       );
       connection.release();
 
+      console.log('✓ Report created successfully (ID: ' + result[0].insertId + ')');
+
       res.status(201).json({
         id: result[0].insertId,
         message: 'Report submitted successfully',
-        photoUrl: photoUrl
+        photoUrl: photoUrl,
+        warning: s3UploadWarning
       });
     } catch (error) {
       console.error('Error creating report:', error);
